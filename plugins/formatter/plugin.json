@@ -1,0 +1,12 @@
+{
+  "id": "dev.pepino.formatter",
+  "name": "Formatter",
+  "version": "1.0.0",
+  "apiVersion": "1",
+  "description": "Formats the open JavaScript, CSS or HTML file (js-beautify).",
+  "permissions": ["editor.read", "editor.write"],
+  "contributes": {
+    "commands": [{ "id": "format", "title": "Format file" }],
+    "settings": [{ "key": "indentSize", "type": "number", "default": 2, "title": "Spaces per indent" }]
+  }
+}

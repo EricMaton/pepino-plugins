@@ -1,0 +1,49 @@
+{
+  "schema": 1,
+  "plugins": [
+    {
+      "id": "dev.pepino.formatter",
+      "name": "Formatter",
+      "version": "1.0.0",
+      "apiVersion": "1",
+      "description": "Formats the open JavaScript, CSS or HTML file (js-beautify).",
+      "permissions": [
+        "editor.read",
+        "editor.write"
+      ],
+      "path": "plugins/formatter",
+      "files": {
+        "plugin.json": "eec78470d51dd3c025e13a739a79618bb9ef8ce86c7b4f1fea292936da61d462",
+        "main.js": "efb3c26ba155c8feadb957c9e173bdbae47458229d7818bfa32f2c7a7e459c54"
+      }
+    },
+    {
+      "id": "dev.pepino.pickle-themes",
+      "name": "Pickle themes",
+      "version": "1.0.0",
+      "apiVersion": "1",
+      "description": "Two themes in pickle green: Pickle night (dark) and Pickle brine (light). No code: only colours.",
+      "permissions": [],
+      "path": "plugins/pickle-themes",
+      "files": {
+        "plugin.json": "d257302edcb2f231c88f38e299c15418c7d4c97cb282c2ab6e25f1416d6aedd4"
+      }
+    },
+    {
+      "id": "dev.pepino.snippets",
+      "name": "Snippets",
+      "version": "1.0.0",
+      "apiVersion": "1",
+      "description": "Inserts snippets for the open file's language, and keeps your own: select code, save it, insert it anywhere.",
+      "permissions": [
+        "editor.read",
+        "editor.write"
+      ],
+      "path": "plugins/snippets",
+      "files": {
+        "plugin.json": "9390e5181df52350e59ddf615a50515708dafde1da353e43e6f981fd9aef9ebb",
+        "main.js": "dea3ba9a7588b931743ba7844e28c2c58801d19a0fbc85efd58a1ac68a28e80d"
+      }
+    }
+  ]
+}

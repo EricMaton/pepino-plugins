@@ -1,0 +1,42 @@
+{
+  "id": "dev.pepino.pickle-themes",
+  "name": "Pickle themes",
+  "version": "1.0.0",
+  "apiVersion": "1",
+  "description": "Two themes in pickle green: Pickle night (dark) and Pickle brine (light). No code: only colours.",
+  "contributes": {
+    "themes": [
+      {
+        "id": "night",
+        "label": "Pickle night",
+        "base": "dark",
+        "colors": {
+          "bg": "#0d1410",
+          "fg": "#e6f2e8",
+          "surface": "#0d1410",
+          "surfaceVariant": "#16231a",
+          "primary": "#3fbf5f",
+          "onPrimary": "#0a0a0a",
+          "error": "#ff5a4f",
+          "outline": "#6f8a76"
+        }
+      },
+      {
+        "id": "brine",
+        "label": "Pickle brine",
+        "base": "light",
+        "colors": {
+          "bg": "#eef3e2",
+          "fg": "#142016",
+          "surface": "#eef3e2",
+          "surfaceVariant": "#dde6cc",
+          "primary": "#2e7d32",
+          "onPrimary": "#f2f2f2",
+          "error": "#c62828",
+          "outline": "#5d6b58",
+          "onGit": "#eef3e2"
+        }
+      }
+    ]
+  }
+}

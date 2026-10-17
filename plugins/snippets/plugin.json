@@ -1,0 +1,15 @@
+{
+  "id": "dev.pepino.snippets",
+  "name": "Snippets",
+  "version": "1.0.0",
+  "apiVersion": "1",
+  "description": "Inserts snippets for the open file's language, and keeps your own: select code, save it, insert it anywhere.",
+  "permissions": ["editor.read", "editor.write"],
+  "contributes": {
+    "commands": [
+      { "id": "insert", "title": "Insert snippet" },
+      { "id": "save", "title": "Save selection as snippet" },
+      { "id": "delete", "title": "Delete one of my snippets" }
+    ]
+  }
+}
