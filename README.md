@@ -18,6 +18,7 @@ plugins/<folder>/
 ├── plugin.json         ← the manifest
 └── main.js             ← the script (not needed by a plugin without commands, such as a theme)
 scripts/build-index.mjs ← builds index.json
+tests/                  ← each plugin's tests (node --test), with a harness that plays Pepino's api
 ```
 
 Each entry of `index.json` has the plugin's id, name, version, API version, description, permissions, its
@@ -31,6 +32,8 @@ one here:
 
 1. Make a folder in `plugins/` with its `plugin.json` (and `main.js`).
 2. Run `node scripts/build-index.mjs` (Node 22) to update `index.json`.
-3. Open a pull request. CI checks the manifests and that `index.json` is up to date.
+3. Test it: `node --test "tests/*.test.mjs"` runs every plugin's tests; `tests/harness.mjs` runs a `main.js` with
+   an `api` you answer.
+4. Open a pull request. CI checks the manifests, that `index.json` is up to date, and the tests.
 
 A new version of a plugin is the same: change its files, raise `version` in `plugin.json`, rebuild the index.
