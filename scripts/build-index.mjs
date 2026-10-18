@@ -16,7 +16,8 @@ const INDEX = join(ROOT, 'index.json');
 const ID = /^[a-z0-9]+(?:[-_][a-z0-9]+)*(?:\.[a-z0-9]+(?:[-_][a-z0-9]+)*)+$/;
 const VERSION = /^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/;
 const API_VERSIONS = ['1'];
-const FILES = ['plugin.json', 'main.js'];
+/** A plugin's files: plugin.json, main.js, and its pages' HTML (pepino-ide #185). */
+const isPluginFile = (name) => name === 'plugin.json' || name === 'main.js' || /^[A-Za-z0-9][A-Za-z0-9._-]*\.html$/.test(name);
 
 const sha256 = (path) => createHash('sha256').update(readFileSync(path)).digest('hex');
 
@@ -37,7 +38,7 @@ for (const folder of readdirSync(PLUGINS, { withFileTypes: true }).filter((entry
   if (typeof manifest.version !== 'string' || !VERSION.test(manifest.version)) fail('version: x.y.z');
   if (!API_VERSIONS.includes(manifest.apiVersion)) fail(`apiVersion: one of ${API_VERSIONS.join(', ')}`);
   const commands = manifest.contributes?.commands ?? [];
-  const files = FILES.filter((file) => existsSync(join(PLUGINS, folder.name, file)));
+  const files = readdirSync(join(PLUGINS, folder.name)).filter(isPluginFile).sort();
   if (commands.length > 0 && !files.includes('main.js')) fail('main.js: needed, the plugin has commands');
   if (plugins.some((plugin) => plugin.id === manifest.id)) fail(`id "${manifest.id}" is already in another folder`);
   plugins.push({
