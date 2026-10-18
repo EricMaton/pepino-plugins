@@ -4,9 +4,9 @@
     {
       "id": "dev.pepino.claude-assistant",
       "name": "Claude Assistant",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "apiVersion": "1",
-      "description": "Chat with Claude about the open project, with your own Anthropic account. It reads your files to answer; it never changes them on its own.",
+      "description": "Chat with Claude about the open project, with your own account: sign in with OpenRouter, or use your Anthropic API key. It reads your files to answer; it never changes them on its own.",
       "permissions": [
         "network",
         "fs.read",
@@ -14,9 +14,9 @@
       ],
       "path": "plugins/claude-assistant",
       "files": {
-        "chat.html": "244cb8a2fdb5620935dede89b039dc1edf3dd032977056897649d026fcf90e26",
-        "main.js": "1b7a95d883e251072d1aa2d2a2a46168895667b3999e926affadc5628aa391d7",
-        "plugin.json": "39aac74b92249196517384729e0e7b5260e91ff8a543b73064e4605f2d2527b5"
+        "chat.html": "fe6e9fcf54405264a54f2169c15870de9420c582964a04389f8d94778d9c0cfe",
+        "main.js": "3e17483b8e51ab26223d41b11cf010015e46425a838a934142da9a1889dbff7b",
+        "plugin.json": "86c16524c154f6c6c6346b21f32e00f9e75fc69e331bb951b0efdf2a33ab0c64"
       }
     },
     {

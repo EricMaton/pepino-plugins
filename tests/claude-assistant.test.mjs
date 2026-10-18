@@ -23,15 +23,19 @@ const tool = (index, id, name, input) => [
 const end = (reason) => [{ type: 'message_delta', delta: { stop_reason: reason } }, { type: 'message_stop' }];
 
 /** The assistant with a host that plays the user's key, the project and Anthropic ([answers], one per request). */
-async function setUp(answers, { connected = true, status = 200 } = {}) {
-  const state = { connected, posted: [], requests: [], forgotten: false };
+async function setUp(answers, { connected = true, openrouter = false, status = 200 } = {}) {
+  const state = { connected, openrouter, posted: [], requests: [], forgotten: null, storage: {} };
   const calls = {
-    'secrets.has': () => state.connected,
+    'secrets.has': (key) => (key === 'anthropic' ? state.connected : state.openrouter),
     'secrets.ask': () => (state.connected = true),
-    'secrets.forget': () => {
-      state.forgotten = true;
-      state.connected = false;
+    'secrets.signIn': () => (state.openrouter = true),
+    'secrets.forget': (key) => {
+      state.forgotten = key;
+      if (key === 'anthropic') state.connected = false;
+      else state.openrouter = false;
     },
+    'storage.get': (key) => state.storage[key] ?? null,
+    'storage.set': (key, value) => void (state.storage[key] = value),
     'fs.root': () => 'shop',
     'fs.read': (path) => (path === 'src/cart.js' ? 'export const total = 0;\n' : Promise.reject(new Error(`Not found: ${path}`))),
     'pages.postMessage': (page, data) => void state.posted.push(data),
@@ -82,6 +86,7 @@ test('asks Claude, streams its answer to the page, and lets it read the project 
   assert.deepEqual(lastState(state.posted), {
     type: 'state',
     connected: true,
+    provider: 'Anthropic',
     project: 'shop',
     busy: false,
     view: [
@@ -112,15 +117,37 @@ test('without a key it asks for none and sends nothing; connecting asks the app'
   assert.equal(state.requests.length, 0);
   assert.equal(lastState(state.posted).connected, false);
 
-  await page({ type: 'connect' });
+  await page({ type: 'connect', provider: 'anthropic' });
   assert.equal(lastState(state.posted).connected, true);
+  assert.equal(state.storage.provider, 'anthropic');
+});
+
+test('signed in with OpenRouter, it reaches Claude there, with the model by its OpenRouter name', async () => {
+  const { state, page } = await setUp([sse([...text(0, ['Hi']), ...end('end_turn')])], { connected: false });
+  await page({ type: 'connect', provider: 'openrouter' });
+  assert.equal(lastState(state.posted).provider, 'OpenRouter');
+  await page({ type: 'send', text: 'Hello' });
+
+  const [request] = state.requests;
+  assert.equal(request.url, 'https://openrouter.ai/api/v1/messages');
+  assert.equal(request.body.model, 'anthropic/claude-opus-5.5');
+  assert.equal(request.headers['X-Title'], 'Pepino');
+  assert.equal(request.headers.authorization, undefined); // Pepino adds the key, never the plugin
+  assert.equal(request.headers['anthropic-dangerous-direct-browser-access'], undefined);
+});
+
+test('with both accounts, the one connected last is used', async () => {
+  const { state, page } = await setUp([sse([...text(0, ['Hi']), ...end('end_turn')])], { openrouter: true });
+  await page({ type: 'connect', provider: 'openrouter' });
+  await page({ type: 'send', text: 'Hello' });
+  assert.equal(state.requests[0].url, 'https://openrouter.ai/api/v1/messages');
 });
 
 test('a refused key is forgotten, and the answer says what to do; what failed is not kept', async () => {
   const { state, page } = await setUp([[]], { status: 401 });
   await page({ type: 'send', text: 'Hello' });
   const shown = lastState(state.posted);
-  assert.equal(state.forgotten, true);
+  assert.equal(state.forgotten, 'anthropic');
   assert.equal(shown.connected, false);
   assert.match(shown.view[1].error, /Anthropic refused your key/);
 

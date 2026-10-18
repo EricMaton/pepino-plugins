@@ -1,16 +1,36 @@
 // Claude Assistant (pepino-ide #58): a chat with Claude about the open
-// project, on its own page. It talks to Anthropic's Messages API with the
-// user's own key (Pepino adds it: this plugin never sees it), streams the
+// project, on its own page. It talks to Claude through the user's own
+// account (#190): OpenRouter, signed in to in the browser, or an Anthropic
+// API key; both take Anthropic's Messages API. Pepino adds the user's key:
+// this plugin never sees it. It streams the
 // answer to the page as it is written, and lets Claude read the project
 // with tools (list, read, find, search, the open file). It changes nothing:
 // edits come later as diffs the user accepts (#60).
 
-const API = 'https://api.anthropic.com/v1/messages';
 const HEADERS = {
   'content-type': 'application/json',
   'anthropic-version': '2023-06-01',
-  // Only for the web (development): on the phone the request goes natively
-  'anthropic-dangerous-direct-browser-access': 'true',
+};
+
+/** Where Claude is reached, by the account the user connected; each takes the Messages API. */
+const PROVIDERS = {
+  openrouter: {
+    name: 'OpenRouter',
+    url: 'https://openrouter.ai/api/v1/messages',
+    // Who is asking, for the user's OpenRouter activity
+    headers: { 'HTTP-Referer': 'https://github.com/EricMaton/pepino-ide', 'X-Title': 'Pepino' },
+    // claude-opus-5-5 is anthropic/claude-opus-5.5 there
+    model: (model) => `anthropic/${model.replace(/-(\d+)-(\d+)$/, '-$1.$2')}`,
+    credit: 'Your OpenRouter credit has run out: add some at openrouter.ai/credits',
+  },
+  anthropic: {
+    name: 'Anthropic',
+    url: 'https://api.anthropic.com/v1/messages',
+    // Only for the web (development): on the phone the request goes natively
+    headers: { 'anthropic-dangerous-direct-browser-access': 'true' },
+    model: (model) => model,
+    credit: 'Your Anthropic credit has run out: add some at console.anthropic.com',
+  },
 };
 /** Rounds of tools Claude may use for one message. */
 const MAX_TURNS = 12;
@@ -78,18 +98,19 @@ function summary(name, input) {
 }
 
 /** What an API error means for the user. */
-function apiError(status, text) {
+function apiError(provider, status, text) {
+  const { name } = PROVIDERS[provider];
   let message = '';
   try {
     message = JSON.parse(text).error.message || '';
   } catch (e) {
     message = text.slice(0, 200);
   }
-  if (status === 401) return 'Anthropic refused your key: check it in PLUGINS → Claude Assistant → Manage, or add it again';
-  if (/credit balance/i.test(message)) return 'Your Anthropic credit has run out: add some at console.anthropic.com';
+  if (status === 401) return `${name} refused your ${provider === 'openrouter' ? 'sign-in' : 'key'}: connect again`;
+  if (status === 402 || /credit/i.test(message)) return PROVIDERS[provider].credit;
   if (status === 429) return 'Too many requests for your account right now: wait a moment and try again';
-  if (status === 529 || status === 503) return 'Anthropic is overloaded: try again in a moment';
-  return `Anthropic answered ${status}${message ? `: ${message}` : ''}`;
+  if (status === 529 || status === 503) return `${name} is overloaded: try again in a moment`;
+  return `${name} answered ${status}${message ? `: ${message}` : ''}`;
 }
 
 plugin.onActivate((api) => {
@@ -103,14 +124,26 @@ plugin.onActivate((api) => {
   let stopping = false;
 
   const post = (data) => api.pages.postMessage('chat', data);
-  const state = async () =>
-    post({
+
+  /** The account to reach Claude with: the one connected last that is still there. */
+  async function provider() {
+    const chosen = await api.storage.get('provider');
+    const connected = [];
+    for (const name of Object.keys(PROVIDERS)) if (await api.secrets.has(name)) connected.push(name);
+    return connected.includes(chosen) ? chosen : connected[0] || null;
+  }
+
+  const state = async () => {
+    const using = await provider();
+    return post({
       type: 'state',
-      connected: await api.secrets.has('anthropic'),
+      connected: using !== null,
+      provider: using && PROVIDERS[using].name,
       project: await api.fs.root().catch(() => null),
       busy,
       view,
     });
+  };
 
   async function runTool(name, input) {
     switch (name) {
@@ -138,7 +171,7 @@ plugin.onActivate((api) => {
   }
 
   /** One request to Claude, streamed: its content blocks and why it stopped. */
-  async function ask(project, shown) {
+  async function ask(using, project, shown) {
     const blocks = [];
     let stop = null;
     let failure = null;
@@ -174,13 +207,14 @@ plugin.onActivate((api) => {
         failure = data.error.message || data.error.type;
       }
     };
+    const target = PROVIDERS[using];
     current = api.network.stream(
-      API,
+      target.url,
       {
         method: 'POST',
-        headers: HEADERS,
+        headers: { ...HEADERS, ...target.headers },
         body: JSON.stringify({
-          model: api.settings.get('model'),
+          model: target.model(api.settings.get('model')),
           max_tokens: api.settings.get('maxTokens'),
           system: system(project),
           tools: TOOLS,
@@ -198,14 +232,19 @@ plugin.onActivate((api) => {
     );
     const answer = await current;
     current = null;
-    if (answer.status !== 200) throw new Error(apiError(answer.status, answer.text));
+    if (answer.status !== 200) {
+      const error = new Error(apiError(using, answer.status, answer.text));
+      error.refused = answer.status === 401;
+      throw error;
+    }
     if (failure) throw new Error(`Claude stopped: ${failure}`);
     return { blocks: blocks.filter(Boolean), stop };
   }
 
   async function send(text) {
     if (busy || !text.trim()) return;
-    if (!(await api.secrets.has('anthropic'))) {
+    const using = await provider();
+    if (!using) {
       await state();
       return;
     }
@@ -220,7 +259,7 @@ plugin.onActivate((api) => {
     await state();
     try {
       for (let turn = 0; turn < MAX_TURNS; turn++) {
-        const { blocks, stop } = await ask(project, shown);
+        const { blocks, stop } = await ask(using, project, shown);
         messages.push({
           role: 'assistant',
           content: blocks.map((block) =>
@@ -251,7 +290,7 @@ plugin.onActivate((api) => {
       // What did not finish is not kept: the next message starts from the last whole answer
       messages.length = mark;
       shown.error = stopping ? 'Stopped' : error.message;
-      if (/refused your key/.test(error.message)) await api.secrets.forget('anthropic');
+      if (error.refused) await api.secrets.forget(using);
     }
     busy = false;
     current = null;
@@ -265,8 +304,12 @@ plugin.onActivate((api) => {
     else if (message.type === 'stop' && current) {
       stopping = true;
       await current.cancel();
-    } else if (message.type === 'connect') {
-      await api.secrets.ask('anthropic');
+    } else if (message.type === 'connect' && PROVIDERS[message.provider]) {
+      const connected =
+        message.provider === 'openrouter'
+          ? await api.secrets.signIn('openrouter')
+          : await api.secrets.ask('anthropic');
+      if (connected) await api.storage.set('provider', message.provider);
       await state();
     } else if (message.type === 'new' && !busy) {
       messages = [];
