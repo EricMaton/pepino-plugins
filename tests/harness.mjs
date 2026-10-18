@@ -56,7 +56,12 @@ export function plugin(folder) {
         find: call('fs.find'),
         search: call('fs.search'),
       },
-      secrets: { has: call('secrets.has'), ask: call('secrets.ask'), forget: call('secrets.forget') },
+      secrets: {
+        has: call('secrets.has'),
+        ask: call('secrets.ask'),
+        signIn: call('secrets.signIn'),
+        forget: call('secrets.forget'),
+      },
       pages: {
         postMessage: call('pages.postMessage'),
         onMessage: (pageId, listener) => pageListeners.set(pageId, listener),

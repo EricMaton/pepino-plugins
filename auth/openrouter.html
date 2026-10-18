@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Back to Pepino</title>
+    <style>
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #0a0a0a;
+        color: #f2f2f2;
+        font: 15px/1.5 ui-monospace, monospace;
+      }
+      main {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        max-width: 360px;
+        padding: 24px;
+      }
+      h1 {
+        margin: 0;
+        font-size: 22px;
+      }
+      p {
+        margin: 0;
+        color: #8a8a8a;
+      }
+      a {
+        align-self: flex-start;
+        padding: 12px 20px;
+        border: 2px solid #f2f2f2;
+        background: #e10600;
+        color: #f2f2f2;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-decoration: none;
+        box-shadow: 4px 4px 0 #f2f2f2;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Back to Pepino…</h1>
+      <p id="status">You signed in to OpenRouter. Pepino is opening to finish.</p>
+      <a id="back" href="#" hidden>OPEN PEPINO</a>
+    </main>
+    <script>
+      // OpenRouter came back here with a code (pepino-ide #190): it goes to the app, which exchanges it for
+      // the user's key with the verifier only the app has (PKCE). Nothing is kept or sent anywhere else.
+      const code = new URLSearchParams(location.search).get('code');
+      const status = document.getElementById('status');
+      const back = document.getElementById('back');
+      if (!code || !/^[A-Za-z0-9._~-]+$/.test(code)) {
+        status.textContent = 'There is no sign-in here: go back to Pepino and try again.';
+      } else {
+        const query = `code=${encodeURIComponent(code)}`;
+        // Chrome on Android opens apps more reliably by intent:// than by their own scheme
+        const target = /Android/i.test(navigator.userAgent)
+          ? `intent://auth/openrouter?${query}#Intent;scheme=pepino;package=dev.pepino.ide;end`
+          : `pepino://auth/openrouter?${query}`;
+        back.href = target;
+        back.hidden = false;
+        location.replace(target);
+      }
+    </script>
+  </body>
+</html>

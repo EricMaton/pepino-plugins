@@ -1,12 +1,24 @@
 {
   "id": "dev.pepino.claude-assistant",
   "name": "Claude Assistant",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "apiVersion": "1",
-  "description": "Chat with Claude about the open project, with your own Anthropic account. It reads your files to answer; it never changes them on its own.",
-  "permissions": ["network", "fs.read", "editor.read"],
-  "networkJustification": "It sends your messages, and the files it reads to answer them, to Anthropic's API (api.anthropic.com) with your own key.",
+  "description": "Chat with Claude about the open project, with your own account: sign in with OpenRouter, or use your Anthropic API key. It reads your files to answer; it never changes them on its own.",
+  "permissions": [
+    "network",
+    "fs.read",
+    "editor.read"
+  ],
+  "networkJustification": "It sends your messages, and the files it reads to answer them, to Claude through your own account: OpenRouter (openrouter.ai) or Anthropic's API (api.anthropic.com).",
   "secrets": [
+    {
+      "key": "openrouter",
+      "label": "OpenRouter account",
+      "host": "openrouter.ai",
+      "header": "authorization",
+      "prefix": "Bearer ",
+      "signIn": "openrouter"
+    },
     {
       "key": "anthropic",
       "label": "Anthropic API key",
@@ -16,10 +28,26 @@
     }
   ],
   "contributes": {
-    "pages": [{ "id": "chat", "title": "Claude", "file": "chat.html" }],
+    "pages": [
+      {
+        "id": "chat",
+        "title": "Claude",
+        "file": "chat.html"
+      }
+    ],
     "settings": [
-      { "key": "model", "type": "string", "default": "claude-opus-5-5", "title": "Model" },
-      { "key": "maxTokens", "type": "number", "default": 8192, "title": "Longest answer (tokens)" }
+      {
+        "key": "model",
+        "type": "string",
+        "default": "claude-opus-5-5",
+        "title": "Model"
+      },
+      {
+        "key": "maxTokens",
+        "type": "number",
+        "default": 8192,
+        "title": "Longest answer (tokens)"
+      }
     ]
   }
 }

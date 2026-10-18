@@ -227,19 +227,24 @@
       }
 
       function render() {
-        document.getElementById('project').textContent = state.project ? `Claude · ${state.project}` : 'Claude · no project open';
+        document.getElementById('project').textContent =
+          (state.project ? `Claude · ${state.project}` : 'Claude · no project open') +
+          (state.provider ? ` · via ${state.provider}` : '');
         document.getElementById('footer').hidden = !state.connected;
         document.getElementById('new').disabled = state.busy || state.view.length === 0;
         send.textContent = state.busy ? 'Stop' : 'Send';
         send.disabled = !state.busy && !input.value.trim();
         if (!state.connected) {
           log.innerHTML = `<div class="connect">
-            <h1>Connect your Anthropic account</h1>
-            <p class="muted">Claude Assistant uses your own Anthropic API key: you pay for what you use, at Anthropic. Pepino keeps it encrypted on this phone and sends it only to Anthropic; the plugin never sees it.</p>
-            <p class="muted">Get one at console.anthropic.com → API Keys → Create key.</p>
-            <button class="primary" id="connect" type="button">Add my API key</button>
+            <h1>Connect your account</h1>
+            <p class="muted">Claude Assistant talks to Claude through your own account: you pay for what you use there. Pepino keeps your key encrypted on this phone; the plugin never sees it.</p>
+            <button class="primary" id="openrouter" type="button">Sign in with OpenRouter</button>
+            <p class="muted">The easiest: sign in (Google, GitHub or email) and add some credit at OpenRouter, which gives Claude to Pepino for you.</p>
+            <button id="anthropic" type="button">Use my Anthropic API key</button>
+            <p class="muted">If you have an Anthropic account: Pepino shows you where to make a key, and you paste it.</p>
           </div>`;
-          document.getElementById('connect').onclick = () => pepino.postMessage({ type: 'connect' });
+          document.getElementById('openrouter').onclick = () => pepino.postMessage({ type: 'connect', provider: 'openrouter' });
+          document.getElementById('anthropic').onclick = () => pepino.postMessage({ type: 'connect', provider: 'anthropic' });
           return;
         }
         if (state.view.length === 0) {
