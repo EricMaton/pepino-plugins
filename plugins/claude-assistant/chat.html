@@ -1,0 +1,306 @@
+<!doctype html>
+<html>
+  <head>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        height: 100%;
+      }
+      body {
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        border-bottom: 2px solid var(--fg);
+      }
+      header .project {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        color: var(--outline);
+        font-size: 12px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      button {
+        min-height: 40px;
+        padding: 0 14px;
+        border: 2px solid var(--fg);
+        background: var(--bg);
+        color: var(--fg);
+        font: inherit;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+      button.primary {
+        background: var(--primary);
+        color: var(--on-primary);
+        box-shadow: 3px 3px 0 var(--fg);
+      }
+      button:disabled {
+        opacity: 0.4;
+      }
+      button:active:not(:disabled) {
+        transform: translate(3px, 3px);
+        box-shadow: none;
+      }
+      #log {
+        flex: 1;
+        overflow-y: auto;
+        padding: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        -webkit-overflow-scrolling: touch;
+      }
+      .user {
+        align-self: flex-end;
+        max-width: 88%;
+        padding: 8px 12px;
+        border: 2px solid var(--fg);
+        background: var(--surface-variant);
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+      }
+      .assistant {
+        max-width: 100%;
+        overflow-wrap: anywhere;
+      }
+      .assistant p {
+        margin: 0 0 8px;
+        white-space: pre-wrap;
+      }
+      .assistant pre {
+        margin: 0 0 8px;
+        padding: 8px 10px;
+        overflow-x: auto;
+        border: 1px solid var(--hairline);
+        background: var(--surface-variant);
+        font-size: 12px;
+      }
+      .assistant code {
+        font-family: inherit;
+      }
+      .assistant :not(pre) > code {
+        padding: 0 3px;
+        background: var(--surface-variant);
+      }
+      .tool {
+        color: var(--outline);
+        font-size: 12px;
+      }
+      .tool::before {
+        content: '› ';
+        color: var(--primary);
+      }
+      .error {
+        color: var(--error);
+        font-size: 13px;
+      }
+      .cursor::after {
+        content: '▍';
+        color: var(--primary);
+        animation: blink 1s steps(1) infinite;
+      }
+      @keyframes blink {
+        50% {
+          opacity: 0;
+        }
+      }
+      .empty,
+      .connect {
+        margin: auto 0;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        padding: 8px 4px;
+      }
+      .empty h1,
+      .connect h1 {
+        margin: 0;
+        font-size: 22px;
+      }
+      .muted {
+        color: var(--outline);
+        margin: 0;
+      }
+      .suggestions {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .suggestions button {
+        text-align: left;
+        text-transform: none;
+        letter-spacing: 0;
+        font-weight: 400;
+        font-size: 14px;
+      }
+      footer {
+        display: flex;
+        align-items: flex-end;
+        gap: 8px;
+        padding: 8px 12px 10px;
+        border-top: 2px solid var(--fg);
+      }
+      footer[hidden] {
+        display: none;
+      }
+      textarea {
+        flex: 1;
+        min-height: 40px;
+        max-height: 140px;
+        padding: 9px 10px;
+        border: 2px solid var(--outline);
+        background: var(--bg);
+        color: var(--fg);
+        font: inherit;
+        resize: none;
+        outline: none;
+      }
+      textarea:focus {
+        border-color: var(--primary);
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <span class="project" id="project">Claude</span>
+      <button id="new" type="button">New chat</button>
+    </header>
+    <main id="log" aria-live="polite"></main>
+    <footer id="footer">
+      <textarea id="input" rows="1" placeholder="Ask about your code…" aria-label="Message"></textarea>
+      <button id="send" class="primary" type="button">Send</button>
+    </footer>
+    <script>
+      const log = document.getElementById('log');
+      const input = document.getElementById('input');
+      const send = document.getElementById('send');
+      let state = { connected: true, project: null, busy: false, view: [] };
+
+      const escape = (text) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+      /** Claude's markdown, enough of it: code blocks, inline code, bold; everything else as text. */
+      function markdown(text) {
+        return text
+          .split(/```/)
+          .map((part, i) => {
+            if (i % 2 === 1) return `<pre><code>${escape(part.replace(/^[^\n]*\n/, ''))}</code></pre>`;
+            return part
+              .split(/\n{2,}/)
+              .filter((paragraph) => paragraph.trim())
+              .map(
+                (paragraph) =>
+                  `<p>${escape(paragraph)
+                    .replace(/`([^`\n]+)`/g, '<code>$1</code>')
+                    .replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')}</p>`,
+              )
+              .join('');
+          })
+          .join('');
+      }
+
+      const nearBottom = () => log.scrollHeight - log.scrollTop - log.clientHeight < 80;
+      const toBottom = () => (log.scrollTop = log.scrollHeight);
+
+      /** Claude's answer as it went: its text, and what it looked at in between. */
+      function assistant(entry, last) {
+        const parts = entry.parts
+          .map((part) => (part.tool !== undefined ? `<div class="tool">${escape(part.tool)}</div>` : markdown(part.text)))
+          .join('');
+        const error = entry.error ? `<div class="error">${escape(entry.error)}</div>` : '';
+        const cursor = last && state.busy ? ' cursor' : '';
+        return `<div class="assistant${cursor}">${parts}${error}</div>`;
+      }
+
+      function render() {
+        document.getElementById('project').textContent = state.project ? `Claude · ${state.project}` : 'Claude · no project open';
+        document.getElementById('footer').hidden = !state.connected;
+        document.getElementById('new').disabled = state.busy || state.view.length === 0;
+        send.textContent = state.busy ? 'Stop' : 'Send';
+        send.disabled = !state.busy && !input.value.trim();
+        if (!state.connected) {
+          log.innerHTML = `<div class="connect">
+            <h1>Connect your Anthropic account</h1>
+            <p class="muted">Claude Assistant uses your own Anthropic API key: you pay for what you use, at Anthropic. Pepino keeps it encrypted on this phone and sends it only to Anthropic; the plugin never sees it.</p>
+            <p class="muted">Get one at console.anthropic.com → API Keys → Create key.</p>
+            <button class="primary" id="connect" type="button">Add my API key</button>
+          </div>`;
+          document.getElementById('connect').onclick = () => pepino.postMessage({ type: 'connect' });
+          return;
+        }
+        if (state.view.length === 0) {
+          const ideas = state.project
+            ? ['What does this project do?', 'Explain the file open in the editor', 'Find possible bugs in the open file']
+            : ['How do I start a new web project?'];
+          log.innerHTML = `<div class="empty">
+            <h1>Ask Claude</h1>
+            <p class="muted">${state.project ? `It can read “${escape(state.project)}” to answer. It changes nothing on its own.` : 'Open a project and Claude can read it to answer.'}</p>
+            <div class="suggestions">${ideas.map((idea) => `<button type="button">${escape(idea)}</button>`).join('')}</div>
+          </div>`;
+          log.querySelectorAll('.suggestions button').forEach((button) => {
+            button.onclick = () => submit(button.textContent);
+          });
+          return;
+        }
+        const follow = nearBottom();
+        log.innerHTML = state.view
+          .map((entry, i) =>
+            entry.role === 'user'
+              ? `<div class="user">${escape(entry.text)}</div>`
+              : assistant(entry, i === state.view.length - 1),
+          )
+          .join('');
+        if (follow) toBottom();
+      }
+
+      function submit(text) {
+        if (!text.trim() || state.busy) return;
+        pepino.postMessage({ type: 'send', text });
+        input.value = '';
+        grow();
+      }
+
+      function grow() {
+        input.style.height = 'auto';
+        input.style.height = `${Math.min(input.scrollHeight, 140)}px`;
+        send.disabled = !state.busy && !input.value.trim();
+      }
+
+      pepino.onMessage((message) => {
+        if (message.type === 'state') {
+          state = message;
+          render();
+          toBottom();
+        } else if (message.type === 'delta' && state.view.length) {
+          const parts = state.view[state.view.length - 1].parts;
+          const lastPart = parts[parts.length - 1];
+          if (lastPart && lastPart.text !== undefined) lastPart.text += message.text;
+          else parts.push({ text: message.text });
+          render();
+        } else if (message.type === 'tool' && state.view.length) {
+          state.view[state.view.length - 1].parts.push({ tool: message.summary });
+          render();
+        }
+      });
+
+      send.onclick = () => (state.busy ? pepino.postMessage({ type: 'stop' }) : submit(input.value));
+      document.getElementById('new').onclick = () => pepino.postMessage({ type: 'new' });
+      input.addEventListener('input', grow);
+      pepino.postMessage({ type: 'ready' });
+    </script>
+  </body>
+</html>

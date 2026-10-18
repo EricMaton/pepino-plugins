@@ -6,6 +6,7 @@ its own.
 
 | Plugin        | What it does                                                         | Permissions                  |
 | ------------- | -------------------------------------------------------------------- | ---------------------------- |
+| Claude Assistant | Chat with Claude about the open project, with your own Anthropic key; it reads your files to answer | network, fs.read, editor.read |
 | Formatter     | Formats the open JavaScript, CSS or HTML file (js-beautify)          | editor.read, editor.write    |
 | Pickle themes | Two themes in pickle green: Pickle night (dark), Pickle brine (light) | —                            |
 | Snippets      | Inserts snippets for the open file's language, and keeps your own    | editor.read, editor.write    |
@@ -16,7 +17,8 @@ its own.
 index.json              ← what Pepino lists: generated, do not edit by hand
 plugins/<folder>/
 ├── plugin.json         ← the manifest
-└── main.js             ← the script (not needed by a plugin without commands, such as a theme)
+├── main.js             ← the script (not needed by a plugin without commands, such as a theme)
+└── *.html              ← its pages, if it has any
 scripts/build-index.mjs ← builds index.json
 tests/                  ← each plugin's tests (node --test), with a harness that plays Pepino's api
 ```
